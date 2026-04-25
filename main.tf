@@ -1,6 +1,6 @@
 resource "proxmox_vm_qemu" "ubuntu_dmz_01" {
   name        = "ubuntu-dmz-01"
-  desc        = "Vulnerable Web Services for Portfolio Cyber Range"
+  description = "Vulnerable Web Services for Portfolio Cyber Range"
   target_node = "proxmoxServer" 
   
   clone       = "ubuntu-cloud-template"
@@ -61,9 +61,12 @@ EOF
 resource "proxmox_vm_qemu" "opnsense_router" {
   name        = "opnsense-router"
   target_node = "proxmoxServer"
-  clone       = "800" # Your OPNsense template ID
+  clone       = "opnsense-golden-base" 
   full_clone  = true
   
+  # ADD THIS LINE (Change scsi0 to your disk's actual ID if different)
+  boot = "order=scsi0" 
+
   cores   = 2
   memory  = 2048
   agent   = 1
