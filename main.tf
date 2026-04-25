@@ -1,27 +1,46 @@
 resource "proxmox_vm_qemu" "ubuntu_dmz_01" {
-  name        = "ubuntu-dmz-01"
-  description = "Vulnerable Web Services for Portfolio Cyber Range"
+  # This forces Ubuntu to wait until the router is fully provisioned
+  depends_on = [
+    proxmox_vm_qemu.opnsense_router
+  ]
+  name        = "ubuntu-target-01"
   target_node = "proxmoxServer" 
-  
-  clone       = "ubuntu-cloud-template"
+  vga {
+    type = "std"
+  }
+
+  serial {
+    id   = 0
+    type = "socket"
+  }
+
+  # 1. Point to your untouched base template
+  clone       = "ubuntu-cloud-template" 
+  full_clone  = true
   
   agent       = 1
   os_type     = "cloud-init"
-  cores       = 2
-  sockets     = 1
-  cpu_type    = "host"
+  
+  cpu {
+    cores   = 2
+    sockets = 1
+    type    = "host"
+  }
   memory      = 2048
   scsihw      = "virtio-scsi-pci"
   bootdisk    = "scsi0"
 
-  # Cloud-Init User Config (Keep these at the top level)
+  # 2. Tell Proxmox to run your custom YAML on boot
+  cicustom    = "vendor=local:snippets/vendor.yaml"
+
+  # 3. Terraform will still inject these automatically
   ciuser      = "colton"
+  cipassword  = "TheGoats1234!"
   ipconfig0   = "ip=dhcp" 
   sshkeys     = <<EOF
 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDHcX1JuoNjwv7SG+3ykiivVXDQa/j3UMhqy/fw6AUjuoRJegs40KeLLpbLFxOh3/jpyte2UQw5/k7ZQdK3abduSU4tjSSIBy5woj2ZwvjVW8yBa5lMWJfSohIgL3Q7yyynho+YRxp/2oZh32VT3Zj/RB1AhJLcCrd4DAye3v924Sn2ID9gAu6guQ317m6V1kHOxTiN9dbgjmjENckHtMD/LShNTimukST/vdqkake5mJsQC33bE87ed24I40eN2XCq3pDr6xehiLQCERPA4Csny9IRS7IVPAbRvdgHotrSrIBJidEXU62YOerwq6FnFxuiU/BI4IjeuSMoJ2k3mYJq7uAV6Gb9o8DJfJdm2YrVlPIC4i2WeGrj7/TSLuNQNaFcDeBEreheBBtgW9GS63uIJxBD9Ga1JpOEVOV8LFAvP+TSnj4FVbhkDZPeKKIR5xOounXE0Df1vOkv6Rn1uPWWaKPa7w3LNY7XDcBFZv8skTXvLe3vT+3jSFQ6SDUB1Fr3tOTvOA2GUstwaKte9a5O6ZZQPBh8gTMLveurOI4DCxHkcre0FquQNuEYK+zxjQLlp8PpoJSO/O3GOsqGRVHo89+yFQroxx9b5cG39QsB5O6cQypAcilWaSZkKI75k0TqzhdZcEMmP3LGRteOHjqtz1YtErLfD36dKafzSIHW6Q== colto@Colton
 EOF
 
-  # Corrected Disks Block for Provider v3.x
   disks {
     scsi {
       scsi0 {
@@ -32,7 +51,6 @@ EOF
         }
       }
     }
-    # NEW: This is where the Cloud-Init drive lives now
     ide {
       ide2 {
         cloudinit {
@@ -42,19 +60,10 @@ EOF
     }
   }
 
-  # Serial Console Fix
-  serial {
-    id   = 0
-    type = "socket"
-  }
-  vga {
-    type = "serial0"
-  }
-
   network {
     id     = 0
     model  = "virtio"
-    bridge = "vmbr1" # Change from vmbr0 to vmbr1
+    bridge = "vmbr1" 
   }
 }
 
@@ -64,24 +73,68 @@ resource "proxmox_vm_qemu" "opnsense_router" {
   clone       = "opnsense-golden-base" 
   full_clone  = true
   
-  # ADD THIS LINE (Change scsi0 to your disk's actual ID if different)
-  boot = "order=scsi0" 
+  # REMOVED: boot = "order=scsi0"
 
-  cores   = 2
-  memory  = 2048
-  agent   = 1
+  cpu {
+    cores   = 2
+    type    = "host"
+    sockets = 1
+  }
 
-  # Interface 0: WAN (Connected to your home network)
+  memory = 2048
+  agent  = 1
+  scsihw = "virtio-scsi-pci" 
+
+  # The disks block remains deleted so we don't overwrite the clone
+  
   network {
     id     = 0
     model  = "virtio"
     bridge = "vmbr0"
   }
 
-  # Interface 1: LAN/DMZ (Connected to your internal lab)
   network {
     id     = 1
     model  = "virtio"
-    bridge = "vmbr1" # Ensure this bridge exists in Proxmox
+    bridge = "vmbr1"
+  }
+  lifecycle {
+    ignore_changes = [
+      disks,
+    ]
+  }
+}
+
+resource "proxmox_vm_qemu" "windows_admin" {
+  name        = "win10-admin-01"
+  target_node = "proxmoxServer"
+  clone       = "Win10-Lab-01" 
+  full_clone  = true
+  
+  os_type     = "win10"
+  agent       = 0 
+
+  cpu {
+    cores   = 2
+    type    = "host"
+    sockets = 1
+  }
+
+  memory = 4096 
+
+  # Force UEFI, but let the template handle the boot order
+  bios   = "ovmf"
+
+  network {
+    id     = 0
+    model  = "virtio" 
+    bridge = "vmbr1" 
+  }
+
+  lifecycle {
+    ignore_changes = [
+      disks,
+      efidisk
+    ]
   }
 }
