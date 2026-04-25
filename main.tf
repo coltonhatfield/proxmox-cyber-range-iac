@@ -105,14 +105,19 @@ resource "proxmox_vm_qemu" "opnsense_router" {
   }
 }
 
-resource "proxmox_vm_qemu" "windows_admin" {
-  name        = "win10-admin-01"
+# Notice I changed the resource name so it doesn't conflict in your mind
+resource "proxmox_vm_qemu" "windows_target_01" {
+  name        = "win10-target-01" 
   target_node = "proxmoxServer"
-  clone       = "Win10-Lab-01" 
+  
+  # UPDATE THIS: Point to your brand new template!
+  clone       = "win10-admin-01" 
   full_clone  = true
   
   os_type     = "win10"
-  agent       = 0 
+  
+  # You can turn the agent back on now!
+  agent       = 1 
 
   cpu {
     cores   = 2
@@ -122,12 +127,12 @@ resource "proxmox_vm_qemu" "windows_admin" {
 
   memory = 4096 
 
-  # Force UEFI, but let the template handle the boot order
   bios   = "ovmf"
+  # scsihw is left out because your template uses IDE
 
   network {
     id     = 0
-    model  = "virtio" 
+    model  = "virtio" # VirtIO works perfectly now
     bridge = "vmbr1" 
   }
 
