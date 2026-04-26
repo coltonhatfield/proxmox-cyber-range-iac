@@ -6,6 +6,7 @@ This repository contains the Infrastructure as Code (IaC) required to automatica
 This environment is hosted on a bare-metal Proxmox hypervisor. The infrastructure is entirely codified using **Terraform**, allowing for rapid teardown and reproducible deployments.
 
 ## Physical Diagram
+```mermaid
 flowchart TD
     Internet((Internet)) --- LocalRouter[Local Physical Router]
     LocalRouter --- Switch[Physical Network Switch]
