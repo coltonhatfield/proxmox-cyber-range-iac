@@ -15,8 +15,10 @@ flowchart TD
     subgraph Hardware
     NIC --- Proxmox[Proxmox Bare-Metal Server]
     end
+```
 
 ## Logical Diagram
+```mermaid
 flowchart TB
     RemoteUser((Remote User)) -- Tailscale VPN Tunnel --> OPNsense
 
@@ -35,6 +37,7 @@ flowchart TB
         end
         
     end
+```
 
 ### Currently Deployed Infrastructure
 * **Perimeter Firewall (OPNsense):** An OPNsense router (`opnsense-fw-01`) that isolates the cyber range. It bridges the external network (`vmbr0`) and the internal lab network (`vmbr1`). It is automatically bootstrapped via SSH to install and configure **Tailscale**, advertising the internal subnet (`192.168.1.0/24`) for secure remote access.
