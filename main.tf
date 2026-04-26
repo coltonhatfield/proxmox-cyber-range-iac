@@ -68,12 +68,14 @@ EOF
 }
 
 resource "proxmox_vm_qemu" "opnsense_router" {
-  name        = "opnsense-router"
+  name        = "opnsense-fw-01" 
   target_node = "proxmoxServer"
-  clone       = "opnsense-golden-base" 
+  
+  clone       = "opnsense-router" 
   full_clone  = true
   
-  # REMOVED: boot = "order=scsi0"
+  # KEEP THIS. It will work now because the drive won't be deleted.
+  boot = "order=scsi0" 
 
   cpu {
     cores   = 2
@@ -84,9 +86,23 @@ resource "proxmox_vm_qemu" "opnsense_router" {
   memory = 2048
   agent  = 1
   scsihw = "virtio-scsi-pci" 
+  skip_ipv6   = true
 
-  # The disks block remains deleted so we don't overwrite the clone
-  
+  # --- ADD THIS BLOCK BACK IN ---
+  # Terraform will see this, realize the cloned disk matches, and leave it alone.
+  disks {
+    scsi {
+      scsi0 {
+        disk {
+          # Make sure this matches the size of your OPNsense template (e.g., 8, 16, 20)
+          size    = 32
+          # Make sure this matches where your template lives
+          storage = "local-zfs" 
+        }
+      }
+    }
+  }
+
   network {
     id     = 0
     model  = "virtio"
@@ -98,9 +114,25 @@ resource "proxmox_vm_qemu" "opnsense_router" {
     model  = "virtio"
     bridge = "vmbr1"
   }
+
   lifecycle {
-    ignore_changes = [
-      disks,
+    ignore_changes = [ disks ]
+  }
+
+  provisioner "remote-exec" {
+    connection {
+      type     = "ssh"
+      user     = "root" 
+      password = "opnsense" 
+      host     = self.default_ipv4_address
+      timeout  = "5m" 
+    }
+
+    inline = [
+      "pkg install -y os-tailscale",
+      "service tailscaled enable",
+      "service tailscaled start",
+      "tailscale up --authkey=${var.tailscale_auth_key} --advertise-routes=192.168.1.0/24 --accept-routes"
     ]
   }
 }

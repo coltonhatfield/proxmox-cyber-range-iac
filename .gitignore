@@ -18,3 +18,5 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+
+tailscale_auth_key = "tskey-auth-your-actual-key"
